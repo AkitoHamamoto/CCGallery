@@ -1,0 +1,146 @@
+/* MarkdownStyles.css */
+.article-content {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  line-height: 1.8;
+  color: #333;
+}
+
+.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6 {
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+  margin-top: 24px;
+  margin-bottom: 16px;
+}
+
+/* 見出しのスタイリング */
+.article-content h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin-bottom: 0.5em;
+}
+
+.article-content h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+}
+
+.article-content h3 {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.article-content h4,
+.article-content h5,
+.article-content h6 {
+  font-weight: bold;
+}
+
+p {
+  line-height: 1.8;
+}
+
+a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+ul, ol {
+  padding-left: 2em;
+}
+
+code {
+  background-color: rgba(27,31,35,0.05);
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  border-radius: 3px;
+}
+
+/* コードブロックのスタイリング */
+.article-content pre {
+  background-color: #f6f8fa;
+  border-radius: 3px;
+  padding: 1em;
+  overflow-x: auto;
+}
+
+.article-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table, th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+th {
+  background-color: #f6f8fa;
+}
+
+img {
+  max-width: 100%;
+}
+
+blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+}
+
+/* コードコピー機能のスタイリング */
+.code-copy-button {
+  cursor: pointer;
+  border: none;
+  border-radius: 3px;
+  padding: 0.25em 0.75em;
+  margin-left: 0.5em;
+  background-color: #eff3f6;
+  font-size: 0.8em;
+  color: #333;
+  display: inline-block;
+}
+
+.code-copy-button:hover {
+  background-color: #e2e8f0;
+  position: absolute;
+  top: 0.5em;  /* Adjust these values as needed */
+  right: 0.5em;
+  z-index: 10; /* Ensure the button is above other content */
+}
+
+
+details {
+  @apply p-4 border border-gray-200 rounded-lg mb-4;
+}
+
+summary {
+  @apply text-lg font-semibold cursor-pointer;
+}
+
+/* デフォルトの矢印をカスタムスタイルに置き換える場合 */
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* カスタムのアイコンや追加スタイルを適用したい場合 */
+summary::before {
+  @apply mr-2 inline-block;
+  content: '➕'; /* 閉じているときのアイコン */
+}
+
+details[open] summary::before {
+  content: '➖'; /* 開いているときのアイコン */
+}
