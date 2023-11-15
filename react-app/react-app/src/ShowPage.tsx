@@ -1,13 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import Header from './components/Layout/Header';
 import { FaTwitter, FaGithub, FaInstagram, FaYoutube, FaTiktok } from 'react-icons/fa';
-import { marked, Lexer, Tokens } from 'marked';
+import { marked, Lexer, Tokens, Token } from 'marked';
 import DOMPurify from 'dompurify';
 import './MarkdownStyles.css';
+import Prism from 'prismjs';
+window.Prism = Prism;
+require('prismjs/themes/prism.css');
+
 
 // Token型が見出しであることを確認する型ガード
 const isHeadingToken = (token: Tokens.Generic): token is Tokens.Heading => {
   return token.type === 'heading';
+};
+
+// 言語モジュールを動的にロードする関数
+const loadLanguage = async (lang: string) => {
+  if (!lang) return; // 言語が指定されていない場合は何もしない
+
+  try {
+    // PrismJSの言語ファイルを動的にロードする
+    await require(`prismjs/components/prism-${lang}`);
+  } catch (e) {
+    console.warn(`Language '${lang}' not found in PrismJS`);
+  }
+};
+
+// トークンから言語を抽出し、それに応じてハイライト処理を行う関数
+const highlightCode = async (tokens: Token[]) => {
+  for (const token of tokens) {
+    if (token.type === 'code') {
+      await loadLanguage(token.lang); // 言語モジュールをロード
+      // ここでハイライト処理を実行する
+      Prism.highlightAll();
+    }
+  }
+  // すべてのハイライトが終わったらHTMLを更新する
 };
 
 const ArticleDetail = () => {
@@ -30,22 +58,23 @@ const ArticleDetail = () => {
   const [toc, setToc] = useState<string[]>([]); // 目次の状態をstring[]型で初期化
 
   useEffect(() => {
-    fetch('/text/articleContent.txt')
-      .then((response) => response.text())
-      .then((text) => {
-        // Lexerを使用してマークダウンを解析
-        const tokens = marked.lexer(text);
-        const headers = tokens
-          .filter(isHeadingToken) // 型ガードを使用して見出しをフィルタリング
-          .map(heading => heading.text); // 見出しのテキストを取得
-        setToc(headers); // 目次を状態にセット
+    // 非同期関数を定義して即時実行
+    (async () => {
+      const response = await fetch('/text/articleContent.txt');
+      const text = await response.text();
+      const tokens = marked.lexer(text);
+      await highlightCode(tokens);
+      const headers = tokens
+        .filter(isHeadingToken) // 型ガードを使用して見出しをフィルタリング
+        .map(heading => heading.text); // 見出しのテキストを取得
+      setToc(headers); // 目次を状態にセット
 
-        // マークダウンをHTMLに変換
-        const unsafeHtml = marked.parser(tokens);
-        // DOMPurifyを使用してサニタイズ
-        const safeHtml = DOMPurify.sanitize(unsafeHtml);
-        setArticleContent(safeHtml);
-      });
+      // マークダウンをHTMLに変換
+      const unsafeHtml = marked.parser(tokens);
+      // DOMPurifyを使用してサニタイズ
+      const safeHtml = DOMPurify.sanitize(unsafeHtml);
+      setArticleContent(safeHtml);
+    })();
   }, []);
 
   useEffect(() => {
