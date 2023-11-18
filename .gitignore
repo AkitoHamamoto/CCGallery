@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# 環境変数
+.env
+
 # Reactアプリケーションの依存関係
 /react-app/node_modules
 /react-app/.pnp
