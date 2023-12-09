@@ -15,7 +15,7 @@ const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); // エラーメッセージ用のステート
-  const [csrfToken, setCsrfToken] = useState('');
+  // const [csrfToken, setCsrfToken] = useState('');
 
   const navigate = useNavigate(); // navigate関数を取得
 
@@ -35,19 +35,16 @@ const RegisterScreen: React.FC = () => {
       const response = await axios.post('http://localhost:8080/api/register', {
         email,
         password,
-      }, {
-        headers: {
-          // CSRFトークンをヘッダーに含める
-          'X-CSRF-TOKEN': csrfToken,
-        },
       });
 
       // サーバーからのレスポンスを処理する
       // 登録に成功した場合の処理
       console.log('登録成功:', response.data);
+      // JWTトークンをローカルストレージに保存
+      localStorage.setItem('token', response.data.token);
 
       // レスポンスに含まれるCSRFトークンを更新
-      setCsrfToken(response.data.csrfToken);
+      // setCsrfToken(response.data.csrfToken);
 
       // ログインに成功したら、/userにリダイレクト
       navigate('/user');

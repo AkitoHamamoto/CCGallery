@@ -1,10 +1,19 @@
 import React, { ReactElement, useEffect, useState } from 'react';
-// import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import axios from 'axios';
 
 const checkAuth = async (): Promise<boolean> => {
   try {
-    const response = await axios.get('http://localhost:8080/api/auth', { withCredentials: true });
+    // JWTトークンをローカルストレージから取得する
+    const token = localStorage.getItem('token');
+
+    // ヘッダーにAuthorizationを設定してリクエストを送る
+    const response = await axios.get('http://localhost:8080/api/auth', {
+      headers: {
+        Authorization: `Bearer ${token}` // トークンをヘッダーに含める
+      }
+    });
+
     console.log('Authentication check response:', response);
     return response.status === 200;
   } catch (error) {
@@ -37,12 +46,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element }) => {
   }
 
   // 認証状態を確認するための表示
-  if (!isAuthenticated) {
-    return <div>Not authenticated</div>;
-  }
+  // if (!isAuthenticated) {
+  //   return <div>Not authenticated</div>;
+  // }
 
-  // return isAuthenticated ? element : <Navigate to="/login" />;
-  return <div>{`Authenticated: ${isAuthenticated}`}</div>;
+  return isAuthenticated ? element : <Navigate to="/login" />;
+  // return <div>{`Authenticated: ${isAuthenticated}`}</div>;
 };
 
 export default ProtectedRoute;

@@ -3,6 +3,9 @@
 # 環境変数
 .env
 
+# 画像ストレージ用ディレクトリ
+/go-app/uploads
+
 # Reactアプリケーションの依存関係
 /react-app/node_modules
 /react-app/.pnp

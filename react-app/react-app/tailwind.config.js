@@ -15,6 +15,9 @@ module.exports = {
       height: {
         '55vh': '55vh',
         '60vh': '60vh',
+      },
+      colors: {
+        'black-opacity-4': 'rgba(0, 0, 0, 0.4)'
       }
     },
   },

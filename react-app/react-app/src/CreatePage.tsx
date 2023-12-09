@@ -1,57 +1,218 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from './components/Layout/Header';
 import 'tailwindcss/tailwind.css';
 import { MdFileUpload, MdCancel } from 'react-icons/md';
 
-// デモの技術スタックデータ
-const techStacks = [
-  "JavaScript",
-  "React",
-  "Node.js",
-  "Express",
-  "MongoDB",
-  "TypeScript",
-  "CSS",
-  "HTML"
-];
+type PortfolioData = {
+  id: string;
+  title: string;
+  subtitle: string;
+  thumbnail: string;
+  github_repo_url: string;
+  content: string;
+  status: string;
+  tags: string;
+};
 
 const PostCreation: React.FC = () => {
+  // URLからidクエリパラメータを取得
+  const [searchParams] = useSearchParams();
+  const portfolioId = searchParams.get('id');
+
+  // 技術スタックの全リストを保持する状態
+  const [allTechStacks, setAllTechStacks] = useState<string[]>([]);
+
+  // stateを定義
+  // const [portfolioId, setPortfolioId] = useState('');
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [thumbnail, setThumbnail] = useState('');
-  const [githubRepoUrl, setGithubRepoUrl] = useState(''); // GitHubリポジトリURLのためのステート
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [status, setStatus] = useState('0'); // 公開状況の状態
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
-  {/* 画像アップロード */ }
-  // 画像アップロードハンドラー
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e: ProgressEvent<FileReader>) => {
-        if (e.target && e.target.result) {
-          setThumbnail(e.target.result as string);
+  const navigate = useNavigate(); // ページ遷移用のフック
+
+  const options = {
+    '0': '未公開',
+    '1': '公開',
+    '2': '限定公開'
+  };
+
+  // ポートフォリオデータを取得する
+  useEffect(() => {
+    const jwtToken = localStorage.getItem('token');
+    if (portfolioId) {
+      const fetchPortfolio = async () => {
+        try {
+          const response = await fetch(`http://localhost:8080/api/portfolio?id=${portfolioId}`, {
+            headers: {
+              'Authorization': `Bearer ${jwtToken}`,
+            },
+          });
+
+          console.log(portfolioId);
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch portfolio data');
+          }
+
+          const portfolio = await response.json();
+          console.log(portfolio);
+          // データを状態にセットする
+          setTitle(portfolio.title || '');
+          setSubtitle(portfolio.subtitle || '');
+          setThumbnail(portfolio.thumbnail || '');
+          setGithubRepoUrl(portfolio.github_repo_url || '');
+          setContent(portfolio.content || '');
+          setStatus(portfolio.status || '0');
+          setTags(portfolio.tags ? portfolio.tags.split(',') : []);
+        } catch (error) {
+          console.error('Error fetching portfolio data:', error);
         }
       };
-      reader.readAsDataURL(event.target.files[0]);
+
+      fetchPortfolio();
+    } else {
+      // IDがない場合は新規作成として扱い、すべてのフィールドを初期化する
+      setTitle('');
+      setSubtitle('');
+      setThumbnail('');
+      setGithubRepoUrl('');
+      setContent('');
+      setStatus('0');
+      setTags([]);
+    }
+  }, [portfolioId]);
+
+
+  // ポートフォリオを保存する関数
+  const savePortfolio = async (portfolioData: PortfolioData) => {
+    const jwtToken = localStorage.getItem('token');
+    const method = portfolioId ? 'PUT' : 'POST';
+    const endpoint = `http://localhost:8080/api/portfolio${portfolioId ? `?id=${portfolioId}` : ''}`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}`,
+        },
+        body: JSON.stringify(portfolioData),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      // 成功したら結果をログに表示
+      const result = await response.json();
+      console.log('Portfolio saved:', result);
+      navigate('/mypage');
+
+    } catch (error) {
+      console.error('Error saving portfolio data:', error);
+    }
+  };
+
+  // 保存ボタンが押されたときの処理
+  const handleSaveButtonClick = () => {
+    const portfolioData = {
+      id: portfolioId || '', // 編集時には既存のポートフォリオのIDを使用
+      title: title,
+      subtitle: subtitle,
+      thumbnail: thumbnail,
+      github_repo_url: githubRepoUrl,
+      content: content,
+      status: status,
+      tags: tags.join(','), // タグはカンマ区切りの文字列として結合
+    };
+
+    savePortfolio(portfolioData);
+  };
+
+
+  {/* 画像アップロード */ }
+  // 画像をサーバーにアップロードし、画像のURLを返す関数
+  const uploadPortfolioImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    // JWTトークンをローカルストレージから取得する
+    const jwtToken = localStorage.getItem('token');
+
+    const response = await fetch('http://localhost:8080/api/portfolio/image', {
+      method: 'POST',
+      headers: {
+        // トークンをヘッダーに含める
+        'Authorization': `Bearer ${jwtToken}`
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('画像のアップロードに失敗しました');
+    }
+
+    const data = await response.json();
+    return data.imageUrl; // サーバーのレスポンスに合わせてプロパティを調整する
+  };
+
+  // ポートフォリオ画像アップロードハンドラー
+  const handleThumbnailImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      try {
+        // サーバーにアップロードし、画像のURLを取得
+        const imageUrl = await uploadPortfolioImage(event.target.files[0]);
+        // 状態を更新
+        setThumbnail(imageUrl);
+        // 画像のURLをポートフォリオデータに追加して保存処理を実行
+        // handleChange('thumbnail', imageUrl); // この関数はポートフォリオデータを更新するために使われる
+      } catch (error) {
+        console.error('画像のアップロード中にエラーが発生しました:', error);
+      }
     }
   };
 
 
   {/* 技術スタック */ }
-  // 新しいタグの入力に応じてレコメンドタグを更新する
-  const updateSuggestedTags = (input: string) => {
-    if (input.length === 0) {
-      setSuggestedTags([]);
-    } else {
-      const newSuggestedTags = techStacks.filter(
-        (tech) => tech.toLowerCase().includes(input.toLowerCase()) && !tags.includes(tech)
-      );
-      setSuggestedTags(newSuggestedTags);
+  // コンポーネントがマウントされた時に一度だけ全技術スタックを取得
+  useEffect(() => {
+    fetchTechStacks();
+  }, []);
+
+  // 技術スタックを取得する関数
+  const fetchTechStacks = async () => {
+    // ユーザーが一文字を入力したときだけAPIを呼び出す
+    try {
+      const response = await fetch(`http://localhost:8080/api/techstacks`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tech stacks');
+      }
+      const data = await response.json();
+      console.log(data);
+      setAllTechStacks(data);
+    } catch (error) {
+      console.error(error);
     }
+  };
+
+
+  // 新しいタグの入力フィールドのonChangeハンドラー
+  const handleNewTagChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = event.target.value;
+    setNewTag(inputValue); // 新しいタグの状態を更新
+    // 入力値に基づいてフィルタリングを行う
+    const filteredTechStacks = allTechStacks.filter(tech =>
+      tech.toLowerCase().startsWith(inputValue.toLowerCase())
+    );
+    setSuggestedTags(filteredTechStacks);
   };
 
   const addTag = (tag: string) => {
@@ -94,10 +255,41 @@ const PostCreation: React.FC = () => {
 
   {/* 本文 */ }
   // テキストエリアの高さを自動調整する
+  // 最小のテキストエリアの高さを設定する
+  const MIN_TEXTAREA_HEIGHT = 250; // 例えば、160ピクセル
+
+  // テキストエリアの高さを自動調整する
   const adjustHeight = (element: HTMLTextAreaElement) => {
-    element.style.height = 'inherit';
-    element.style.height = `${element.scrollHeight}px`;
+    // 現在のテキストエリアのスタイルを取得
+    const previousHeight = element.style.height;
+
+    // クローンを作成して内容の高さを測定
+    const clone = element.cloneNode(true) as HTMLTextAreaElement;
+    clone.style.height = 'auto';
+    clone.style.visibility = 'hidden';
+    clone.style.position = 'absolute';
+    document.body.appendChild(clone);
+    const cloneScrollHeight = clone.scrollHeight;
+    document.body.removeChild(clone);
+
+    // 新しい高さを計算
+    const newHeight = Math.max(cloneScrollHeight, MIN_TEXTAREA_HEIGHT);
+
+    // 新しい高さが現在の高さと異なる場合のみ高さを更新
+    if (previousHeight !== `${newHeight}px`) {
+      element.style.height = `${newHeight}px`;
+    }
   };
+
+
+  useEffect(() => {
+    // テキストエリア要素を取得する
+    const textareaElement = document.getElementById('input-content') as HTMLTextAreaElement;
+    // ポートフォリオIDがある場合、または本文がある場合に高さを調整する
+    if (textareaElement) {
+      adjustHeight(textareaElement);
+    }
+  }, [content]);
 
 
   return (
@@ -106,7 +298,32 @@ const PostCreation: React.FC = () => {
       <Header />
 
       <main className="p-6 md:p-20">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-4">
+
+          {/* 保存ボタンと公開状況のセレクトボックス */}
+          <div className="flex justify-end items-center mb-4 space-x-2">
+            {/* 公開状況のセレクトボックス */}
+            <div className="mr-3">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="bg-white text-gray-700 border border-gray-300 py-2 px-4 rounded leading-tight focus:outline-none focus:bg-white focus:border-blue-500"
+                style={{ width: 'auto' }}  // またはTailwind CSSの幅クラスを使用
+              >
+                <option value="0">未公開</option>
+                <option value="1">公開</option>
+                <option value="2">限定公開</option>
+              </select>
+            </div>
+            {/* 保存ボタン */}
+            <button
+              onClick={handleSaveButtonClick}
+              className="px-4 py-2 bg-blue-500 text-white font-semibold rounded hover:bg-blue-600 transition ease-in-out duration-300"
+            >
+              保存
+            </button>
+          </div>
+
 
           {/* タイトルの入力欄 */}
           <div className="mb-4">
@@ -143,7 +360,7 @@ const PostCreation: React.FC = () => {
               <MdFileUpload size={24} className="text-gray-700" />
               <input
                 type="file"
-                onChange={handleImageUpload}
+                onChange={handleThumbnailImageUpload}
                 className="hidden"
               />
             </label>
@@ -166,10 +383,7 @@ const PostCreation: React.FC = () => {
               type="text"
               placeholder="技術スタックを追加..."
               value={newTag}
-              onChange={(e) => {
-                setNewTag(e.target.value);
-                updateSuggestedTags(e.target.value);
-              }}
+              onChange={handleNewTagChange}
               onKeyDown={handleKeyDown}
               className="w-full bg-transparent border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none"
             />
@@ -202,14 +416,16 @@ const PostCreation: React.FC = () => {
           {/* 本文の入力欄 */}
           <div className="mb-4">
             <textarea
+              id="input-content" // id を追加する
               placeholder="本文"
               value={content}
+              onInput={(e) => adjustHeight(e.target as HTMLTextAreaElement)}
               onChange={(e) => {
                 setContent(e.target.value);
-                adjustHeight(e.target);
+                // adjustHeight(e.target);
               }}
-              className="w-full bg-transparent border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none overflow-hidden h-60vh md:h-55vh"
-              style={{ resize: 'none' }}
+              className="w-full bg-transparent border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none overflow-hidden"
+              style={{ resize: 'none', minHeight: `${MIN_TEXTAREA_HEIGHT}px` }} // minHeight をスタイルに適用する
             />
           </div>
         </div>

@@ -1,12 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import Header from './components/Layout/Header';
-import { FaTwitter, FaGithub, FaInstagram, FaYoutube, FaTiktok } from 'react-icons/fa';
 import { marked, Lexer, Tokens, Token } from 'marked';
 import DOMPurify from 'dompurify';
+import useProfileData from './Hooks/useProfileData';
+import SnsIcon from './components/UI/SnsIcon';
 import './MarkdownStyles.css';
+import './App.css';
 import Prism from 'prismjs';
 window.Prism = Prism;
 require('prismjs/themes/prism.css');
+
+
+interface PortfolioData {
+  title: string;
+  subtitle: string;
+  thumbnail: string;
+  github_repo_url: string;
+  content: string;
+  tags: string; // タグはカンマ区切りの文字列として扱う
+  updated_at: string;
+}
 
 
 // Token型が見出しであることを確認する型ガード
@@ -39,72 +52,72 @@ const highlightCode = async (tokens: Token[]) => {
 };
 
 const ArticleDetail = () => {
-  // 仮のプロフィールデータと記事データ
-  const profile = {
-    name: "misuken",
-    image: "images/sample.png", // プロフィール画像のパス
-    sns: {
-      github: "https://github.com/misuken",
-      twitter: "https://twitter.com/misuken",
-      instagram: "https://instagram.com/misuken",
-      youtube: "https://www.youtube.com/",
-      tiktok: "https://www.tiktok.com/"
-    },
-    bio: "React/TypeScript/Sass/BCD Design(発案)/AtomicDesign/DB設計/DBチューニング/正規表現/DDD/柔軟な設計/分類/依存関係整理や責務の境界を見抜くのが得意。 AtomicDesign でモヤモヤしてる人には BCD Design がオススメです"
-  };
-
+  // const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [articleContent, setArticleContent] = useState('');
   const [safeHtmlContent, setSafeHtmlContent] = useState('');
   const [toc, setToc] = useState<string[]>([]); // 目次の状態をstring[]型で初期化
 
-  useEffect(() => {
-    // 非同期関数を定義して即時実行
-    (async () => {
-      const response = await fetch('/text/articleContent.txt');
-      const text = await response.text();
-      const tokens = marked.lexer(text);
-      await highlightCode(tokens);
-      const headers = tokens
-        .filter(isHeadingToken) // 型ガードを使用して見出しをフィルタリング
-        .map(heading => heading.text); // 見出しのテキストを取得
-      setToc(headers); // 目次を状態にセット
 
-      // マークダウンをHTMLに変換
-      const unsafeHtml = marked.parser(tokens);
-      // DOMPurifyを使用してサニタイズ
-      const safeHtml = DOMPurify.sanitize(unsafeHtml);
-      setArticleContent(safeHtml);
-    })();
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      // JWTトークンをローカルストレージから取得
+      const token = localStorage.getItem('token');
+
+      // ヘッダーにトークンをセット
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
+
+      try {
+        // URLからポートフォリオIDを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const portfolioId = urlParams.get('id');
+
+        // ポートフォリオデータを取得
+        if (portfolioId) {
+          // ヘッダーにトークンをセットしてリクエストを送信
+          const portfolioResponse = await fetch(`http://localhost:8080/api/portfolio?id=${portfolioId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const portfolioData = await portfolioResponse.json();
+          console.log(portfolioData);
+          setPortfolio(portfolioData);
+
+          // マークダウンを解析してトークンを取得
+          const tokens = marked.lexer(portfolioData.content);
+          // トークンから言語を抽出してハイライト処理
+          await highlightCode(tokens);
+
+          // トークンから見出しをフィルタリングして目次を生成
+          const headers = tokens
+            .filter(isHeadingToken)
+            .map(heading => heading.text);
+          setToc(headers); // 目次を状態にセット
+
+          // マークダウンをHTMLに変換してサニタイズ
+          const unsafeHtml = marked.parser(tokens);
+          const safeHtml = DOMPurify.sanitize(unsafeHtml);
+          setArticleContent(safeHtml); // サニタイズされたHTMLを状態にセット
+        }
+
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+
+    fetchPortfolio();
   }, []);
 
   useEffect(() => {
     setSafeHtmlContent(articleContent); // サニタイズされたHTMLをセーフHTMLコンテンツステートに保存
   }, [articleContent]);
 
-  const article = {
-    title: "Tauri + Vite + MantineUI",
-    subtitle: "Tauri + Vite + MantineUI でiOS向けのアプリを作り、AppStoreに配信する",
-    content: articleContent,
-    updateDate: "2023/11-12" // 記事の更新日
-  };
 
-  // SNSアカウントのアイコンをレンダリングする関数
-  const renderSnsIcon = (snsName: string, url: string) => {
-    const icons: { [key: string]: JSX.Element } = {
-      github: <FaGithub size={20} className="text-gray-500" />,
-      twitter: <FaTwitter size={20} className="text-gray-500" />,
-      instagram: <FaInstagram size={20} className="text-gray-500" />,
-      youtube: <FaYoutube size={20} className="text-gray-500" />,
-      tiktok: <FaTiktok size={17} className="text-gray-500" />,
-    };
+  // ユーザープロフィール取得
+  const profile = useProfileData();
 
-    const IconComponent = icons[snsName];
-    return url && IconComponent ? (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="mr-2">
-        {IconComponent}
-      </a>
-    ) : null;
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -112,35 +125,40 @@ const ArticleDetail = () => {
       <main className="p-6 md:p-20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold m-2">{article.title}</h1>
-            <p className="text-xl text-gray-600 m-2">{article.subtitle}</p>
-            <p className="text-sm text-gray-500 m-2">{`最終更新日: ${article.updateDate}`}</p> {/* 更新日の表示 */}
+            <h1 className="text-4xl font-bold m-2">{portfolio?.title}</h1>
+            <p className="text-xl text-gray-600 m-2">{portfolio?.subtitle}</p>
+            <p className="text-sm text-gray-500 m-2">
+              最終更新日: {portfolio?.updated_at ? new Intl.DateTimeFormat('ja-JP').format(new Date(portfolio.updated_at)) : ''}
+            </p>
           </div>
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex flex-col lg:flex-row gap-8 justify-center">
             {/* 記事の内容を表示するカード */}
-            <div className="lg:w-auto bg-white shadow-lg p-10 rounded-lg">
+            <div className="flex-grow bg-white shadow-lg p-10 rounded-lg min-w-0 max-w-full">
               {/* Markdownから変換されたHTMLを表示 */}
               <div className="article-content" dangerouslySetInnerHTML={{ __html: safeHtmlContent }} />
             </div>
 
             {/* プロフィールカード */}
-            <div className="lg:w-96">
-              <div className="flex flex-col w-100 bg-white shadow-lg p-8 rounded-lg">
+            <div className="lg:w-96" style={{ minWidth: '300px' }}>
+              <div className="flex flex-col w-full bg-white shadow-lg p-8 rounded-lg">
                 <div className="flex items-center mb-4">
-                  <img src={profile.image} alt="Profile" className="w-16 h-16 rounded-full object-cover mr-4" />
-                  <div>
-                    <h2 className="text-lg font-bold">{profile.name}</h2>
+                  <div className="flex-shrink-0">
+                    <img src={`http://localhost:8080/${profile?.profile_image}`} alt="Profile" className="w-16 h-16 rounded-full object-cover mr-4" />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <h2 className="text-lg font-bold overflow-x-auto whitespace-nowrap no-scrollbar">{profile?.username}</h2>
                     <div className="flex">
-                      {Object.entries(profile.sns).map(([key, value]) => (
-                        <div key={key} className="flex">
-                          {renderSnsIcon(key, value)}
-                        </div>
-                      ))}
+                      <SnsIcon snsName="github" url={profile?.github_url} />
+                      <SnsIcon snsName="twitter" url={profile?.twitter_url} />
+                      <SnsIcon snsName="instagram" url={profile?.instagram_url} />
+                      <SnsIcon snsName="youtube" url={profile?.youtube_url} />
+                      <SnsIcon snsName="tiktok" url={profile?.tiktok_url} />
                     </div>
                   </div>
                 </div>
-                <p className="text-gray-600">{profile.bio}</p>
+                <p className="text-gray-600">{profile?.bio}</p>
               </div>
+
               {/* 記事の目次を表示するカード */}
               <div className="mt-4 bg-white shadow-lg p-4 rounded-lg sticky top-5 hidden md:block">
                 <h3 className="text-lg font-bold mb-4 pl-0">目次</h3>

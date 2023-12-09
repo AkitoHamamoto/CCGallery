@@ -15,7 +15,7 @@ const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); // エラーメッセージ用のステート
-  const [csrfToken, setCsrfToken] = useState('');
+  // const [csrfToken, setCsrfToken] = useState('');
 
   const navigate = useNavigate(); // navigate関数を取得
 
@@ -35,22 +35,17 @@ const LoginScreen: React.FC = () => {
       const response = await axios.post('http://localhost:8080/api/login', {
         email,
         password,
-      }, {
-        headers: {
-          // CSRFトークンをヘッダーに含める
-          'X-CSRF-TOKEN': csrfToken,
-        },
       });
 
-      // サーバーからのレスポンスを処理する
-      // JWTはCookieに保存されるため、ここでは保存する必要はない
       console.log('ログイン成功:', response.data);
+      // JWTトークンをローカルストレージに保存
+      localStorage.setItem('token', response.data.token);
 
       // レスポンスに含まれるCSRFトークンを更新
-      setCsrfToken(response.data.csrfToken);
+      // setCsrfToken(response.data.csrfToken);
 
       // ログインに成功したら、/userにリダイレクト
-      navigate('/user');
+      navigate('/mypage');
 
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
